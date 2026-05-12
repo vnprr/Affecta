@@ -1,34 +1,40 @@
 services:
-  app:
+  clinical-rag-agent:
     build:
-      context: .
+      context: ./clinical-rag-agent
+      dockerfile: Dockerfile
+    image: portfolio-clinical-rag-agent:local
+    container_name: portfolio-clinical-rag-agent
+    env_file:
+      - path: ./clinical-rag-agent/.env
+        required: false
+    ports:
+      - ${CLINICAL_RAG_PORT-8000}:8000
+    volumes:
+      - clinical-rag-data:/app/data
+    restart: unless-stopped
+
+  open-webui:
+    build:
+      context: ./open-webui
       dockerfile: Dockerfile
       args:
         USE_SLIM: ${USE_SLIM-true}
         USE_OLLAMA: ${USE_OLLAMA-false}
         NODE_BUILD_MEMORY: ${NODE_BUILD_MEMORY-4096}
-    image: portfolio-agentci-unified:local
-    container_name: portfolio-agentci-unified
+    image: portfolio-open-webui:local
+    container_name: portfolio-open-webui
+    depends_on:
+      - clinical-rag-agent
+    env_file:
+      - path: ./open-webui/.env
+        required: false
     ports:
       - ${OPEN_WEBUI_PORT-3000}:8080
-    environment:
-      - PORT=8080
-      - HOST=0.0.0.0
-      - ENABLE_OPENAI_API=true
-      - OPENAI_API_BASE_URLS=http://127.0.0.1:8000/v1
-      - CLINICAL_RAG_API_KEY=${CLINICAL_RAG_API_KEY-local-dev-key}
-      - OPENAI_API_KEYS=${CLINICAL_RAG_API_KEY-local-dev-key}
-      - CLINICAL_RAG_DATA_DIR=/app/backend/data/clinical-rag-agent
-      - CLINICAL_RAG_LLM_PROVIDER=${CLINICAL_RAG_LLM_PROVIDER-stub}
-      - CLINICAL_RAG_LLM_BASE_URL=${CLINICAL_RAG_LLM_BASE_URL-}
-      - CLINICAL_RAG_LLM_API_KEY=${CLINICAL_RAG_LLM_API_KEY-}
-      - CLINICAL_RAG_LLM_MODEL=${CLINICAL_RAG_LLM_MODEL-}
-      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY-}
-      - USE_OLLAMA_DOCKER=${USE_OLLAMA-false}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL-}
     volumes:
-      - app-data:/app/backend/data
+      - open-webui-data:/app/backend/data
     restart: unless-stopped
 
 volumes:
-  app-data: {}
+  clinical-rag-data: {}
+  open-webui-data: {}

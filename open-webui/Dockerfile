@@ -3,7 +3,7 @@
 # use build args in the docker build command with --build-arg="BUILDARG=true"
 ARG USE_CUDA=false
 ARG USE_OLLAMA=false
-ARG USE_SLIM=false
+ARG USE_SLIM=true
 ARG USE_PERMISSION_HARDENING=false
 # Tested with cu117 for CUDA 11 and cu121 for CUDA 12 (default)
 ARG USE_CUDA_VER=cu128
@@ -19,6 +19,7 @@ ARG USE_AUXILIARY_EMBEDDING_MODEL=TaylorAI/bge-micro-v2
 ARG USE_TIKTOKEN_ENCODING_NAME="cl100k_base"
 
 ARG BUILD_HASH=dev-build
+ARG NODE_BUILD_MEMORY=4096
 # Override at your own risk - non-root configurations are untested
 ARG UID=0
 ARG GID=0
@@ -26,9 +27,10 @@ ARG GID=0
 ######## WebUI frontend ########
 FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS build
 ARG BUILD_HASH
+ARG NODE_BUILD_MEMORY
 
 # Set Node.js options (heap limit Allocation failed - JavaScript heap out of memory)
-# ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=${NODE_BUILD_MEMORY}"
 
 WORKDIR /app
 
@@ -74,7 +76,9 @@ ENV ENV=prod \
 
 ## Basis URL Config ##
 ENV OLLAMA_BASE_URL="/ollama" \
-    OPENAI_API_BASE_URL=""
+    OPENAI_API_BASE_URL="" \
+    OPENAI_API_BASE_URLS="" \
+    ENABLE_OPENAI_API=true
 
 ## API Key and Security Config ##
 ENV SCARF_NO_ANALYTICS=true \
@@ -87,9 +91,9 @@ ENV WHISPER_MODEL="base" \
     WHISPER_MODEL_DIR="/app/backend/data/cache/whisper/models"
 
 ## RAG Embedding model settings ##
-ENV RAG_EMBEDDING_MODEL="$USE_EMBEDDING_MODEL_DOCKER" \
-    RAG_RERANKING_MODEL="$USE_RERANKING_MODEL_DOCKER" \
-    AUXILIARY_EMBEDDING_MODEL="$USE_AUXILIARY_EMBEDDING_MODEL_DOCKER" \
+ENV RAG_EMBEDDING_MODEL="" \
+    RAG_RERANKING_MODEL="" \
+    AUXILIARY_EMBEDDING_MODEL="" \
     SENTENCE_TRANSFORMERS_HOME="/app/backend/data/cache/embedding/models"
 
 ## Tiktoken model settings ##
@@ -143,8 +147,8 @@ RUN set -e; \
     # fix: pin torch<=2.9.1 - torch 2.10.0 aarch64 wheels cause SIGILL on ARM devices (RPi 4 Cortex-A72) #21349
     pip3 install 'torch<=2.9.1' torchvision torchaudio --index-url https://download.pytorch.org/whl/$USE_CUDA_DOCKER_VER --no-cache-dir; \
     uv pip install --system -r requirements.txt --no-cache-dir; \
-    python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')"; \
-    python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ.get('AUXILIARY_EMBEDDING_MODEL', 'TaylorAI/bge-micro-v2'), device='cpu')"; \
+    if [ -n "$RAG_EMBEDDING_MODEL" ]; then python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')"; fi; \
+    if [ -n "$AUXILIARY_EMBEDDING_MODEL" ]; then python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['AUXILIARY_EMBEDDING_MODEL'], device='cpu')"; fi; \
     python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])"; \
     python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])"; \
     python -c "import nltk; nltk.download('punkt_tab')"; \
@@ -152,8 +156,8 @@ RUN set -e; \
     pip3 install 'torch<=2.9.1' torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --no-cache-dir; \
     uv pip install --system -r requirements.txt --no-cache-dir; \
     if [ "$USE_SLIM" != "true" ]; then \
-    python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')"; \
-    python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ.get('AUXILIARY_EMBEDDING_MODEL', 'TaylorAI/bge-micro-v2'), device='cpu')"; \
+    if [ -n "$RAG_EMBEDDING_MODEL" ]; then python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')"; fi; \
+    if [ -n "$AUXILIARY_EMBEDDING_MODEL" ]; then python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['AUXILIARY_EMBEDDING_MODEL'], device='cpu')"; fi; \
     python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])"; \
     python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])"; \
     python -c "import nltk; nltk.download('punkt_tab')"; \

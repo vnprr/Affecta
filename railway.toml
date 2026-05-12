@@ -1,3 +1,8 @@
+# Optional single-container demo deployment only.
+# For the recommended Railway setup, create two services using:
+# - open-webui/railway.toml
+# - clinical-rag-agent/railway.toml
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
@@ -7,4 +12,3 @@ healthcheckPath = "/health"
 healthcheckTimeout = 600
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
-

@@ -52,9 +52,9 @@ ENV PYTHONUNBUFFERED=1 \
     USE_EMBEDDING_MODEL_DOCKER=${USE_EMBEDDING_MODEL} \
     USE_RERANKING_MODEL_DOCKER=${USE_RERANKING_MODEL} \
     USE_AUXILIARY_EMBEDDING_MODEL_DOCKER=${USE_AUXILIARY_EMBEDDING_MODEL} \
-    RAG_EMBEDDING_MODEL=${USE_EMBEDDING_MODEL} \
-    RAG_RERANKING_MODEL=${USE_RERANKING_MODEL} \
-    AUXILIARY_EMBEDDING_MODEL=${USE_AUXILIARY_EMBEDDING_MODEL} \
+    RAG_EMBEDDING_MODEL="" \
+    RAG_RERANKING_MODEL="" \
+    AUXILIARY_EMBEDDING_MODEL="" \
     SENTENCE_TRANSFORMERS_HOME=/app/backend/data/cache/embedding/models \
     HF_HOME=/app/backend/data/cache/embedding/models \
     WHISPER_MODEL=base \
@@ -91,8 +91,8 @@ RUN set -e; \
       uv pip install --system -r requirements.txt --no-cache-dir; \
     fi; \
     if [ "$USE_SLIM" != "true" ]; then \
-      python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')"; \
-      python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ.get('AUXILIARY_EMBEDDING_MODEL', 'TaylorAI/bge-micro-v2'), device='cpu')"; \
+      if [ -n "$RAG_EMBEDDING_MODEL" ]; then python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')"; fi; \
+      if [ -n "$AUXILIARY_EMBEDDING_MODEL" ]; then python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['AUXILIARY_EMBEDDING_MODEL'], device='cpu')"; fi; \
       python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])"; \
       python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])"; \
       python -c "import nltk; nltk.download('punkt_tab')"; \

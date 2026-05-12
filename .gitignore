@@ -9,4 +9,6 @@ venv/
 
 clinical-rag-agent/data/
 clinical-rag-agent/.env
-
+open-webui/.env
+!clinical-rag-agent/.env.example
+!open-webui/.env.example
