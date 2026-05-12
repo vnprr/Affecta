@@ -1,19 +1,40 @@
-FROM python:3.12-slim
+# syntax=docker/dockerfile:1
+
+ARG PYTHON_IMAGE=python:3.12-slim
+
+FROM ${PYTHON_IMAGE} AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /build
+
+COPY pyproject.toml README.md ./
+COPY clinical_rag_agent ./clinical_rag_agent
+
+RUN python -m pip install --upgrade pip && \
+    python -m pip install --prefix=/install --no-cache-dir --no-compile .
+
+RUN find /install -type d -name '__pycache__' -prune -exec rm -rf {} + && \
+    find /install -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+
+FROM ${PYTHON_IMAGE} AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PORT=8000 \
     CLINICAL_RAG_DATA_DIR=/app/data
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
-COPY clinical_rag_agent ./clinical_rag_agent
+COPY --from=builder /install /usr/local
 
-RUN pip install --no-cache-dir .
-
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && \
+    find /usr/local -type d -name '__pycache__' -prune -exec rm -rf {} + && \
+    find /usr/local -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete && \
+    rm -rf /root/.cache /tmp/*
 
 EXPOSE 8000
 
