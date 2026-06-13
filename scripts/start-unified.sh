@@ -4,7 +4,7 @@ set -euo pipefail
 export PORT="${PORT:-8080}"
 export HOST="${HOST:-0.0.0.0}"
 export CLINICAL_RAG_HOST="${CLINICAL_RAG_HOST:-127.0.0.1}"
-export CLINICAL_RAG_PORT="${CLINICAL_RAG_PORT:-8000}"
+export CLINICAL_RAG_PORT="${CLINICAL_RAG_PORT:-9000}"
 export CLINICAL_RAG_API_KEY="${CLINICAL_RAG_API_KEY:-local-dev-key}"
 export CLINICAL_RAG_DATA_DIR="${CLINICAL_RAG_DATA_DIR:-/app/backend/data/clinical-rag-agent}"
 export ENABLE_OPENAI_API="${ENABLE_OPENAI_API:-true}"
