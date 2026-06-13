@@ -65,7 +65,7 @@ ENV PYTHONUNBUFFERED=1 \
     DO_NOT_TRACK=true \
     ANONYMIZED_TELEMETRY=false \
     ENABLE_OPENAI_API=true \
-    OPENAI_API_BASE_URLS=http://127.0.0.1:8000/v1 \
+    OPENAI_API_BASE_URLS=http://127.0.0.1:9000/v1 \
     CLINICAL_RAG_DATA_DIR=/app/backend/data/clinical-rag-agent \
     CLINICAL_RAG_LLM_PROVIDER=stub
 
