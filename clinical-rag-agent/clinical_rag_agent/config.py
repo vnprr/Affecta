@@ -23,6 +23,14 @@ class Settings(BaseSettings):
         return self.data_dir / "sessions"
 
     @property
+    def therapy_states_dir(self) -> Path:
+        return self.data_dir / "therapy_states"
+
+    @property
+    def session_notes_dir(self) -> Path:
+        return self.data_dir / "session_notes"
+
+    @property
     def rag_dir(self) -> Path:
         return self.data_dir / "rag"
 
@@ -30,4 +38,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

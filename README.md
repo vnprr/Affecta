@@ -2,6 +2,16 @@
 
 **Affecta** to agentowy system RAG + LLM wspierający wywiad psychologiczny, analizę rozmowy, psychoedukację oraz tworzenie planu pracy terapeutycznej pod nadzorem specjalisty. Projekt łączy klasyczne NLP, RAG dokumentowy, Graph RAG, LLM Judge oraz monitoring systemu.
 
+## Current MVP direction
+
+Aktualnie implementowany rdzeń to:
+
+Open WebUI → therapeutic session agent → session memory → therapy state → RAG-assisted context → validation → stored session notes.
+
+Główny agent użytkownika ma zachowywać się jak towarzysz sesji terapeutycznej: utrzymywać ciągłość rozmowy, zauważać emocje i wzorce relacyjne, delikatnie prowadzić eksplorację oraz zapisywać kierunek pracy między sesjami. Agenci diagnostyczni i kliniczni działają w tle jako wsparcie procesu, a nie jako widoczny generator diagnoz.
+
+Graph RAG, OCR, panel human review, Neo4j, Qdrant/pgvector oraz pełny monitoring pozostają etapami roadmapy.
+
 ## Główne funkcje
 
 - prowadzenie ustrukturyzowanego wywiadu psychologicznego,
