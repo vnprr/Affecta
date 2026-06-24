@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from clinical_rag_agent.schemas.therapy import SessionNote
+from clinical_rag_agent.services.storage_utils import append_line
 
 
 class SessionNoteService:
@@ -11,9 +12,7 @@ class SessionNoteService:
 
     async def append_note(self, note: SessionNote) -> None:
         path = self._path(note.session_id)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(note.model_dump(), ensure_ascii=False, default=str))
-            handle.write("\n")
+        append_line(path, json.dumps(note.model_dump(), ensure_ascii=False, default=str))
 
     async def list_notes(self, session_id: str) -> list[SessionNote]:
         path = self._path(session_id)

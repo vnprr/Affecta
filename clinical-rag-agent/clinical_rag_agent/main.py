@@ -9,10 +9,14 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name, version="0.1.0")
     app.state.container = create_container(settings)
+    cors_origins = settings.cors_origins
+    # Credentials cannot be combined with a wildcard origin; only enable them when
+    # the deployment pins concrete origins.
+    allow_credentials = cors_origins != ["*"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=cors_origins,
+        allow_credentials=allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
     )

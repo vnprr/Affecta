@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from clinical_rag_agent.schemas.clinical import NlpContext
 from clinical_rag_agent.schemas.therapy import (
@@ -6,6 +5,7 @@ from clinical_rag_agent.schemas.therapy import (
     TherapeuticProcessContext,
     TherapyStateUpdate,
 )
+from clinical_rag_agent.services.storage_utils import write_json_atomic
 
 
 class TherapyStateService:
@@ -43,10 +43,7 @@ class TherapyStateService:
         return TherapeuticCaseState.model_validate_json(path.read_text(encoding="utf-8"))
 
     async def save(self, state: TherapeuticCaseState) -> TherapeuticCaseState:
-        self._path(state.session_id).write_text(
-            json.dumps(state.model_dump(), ensure_ascii=False, indent=2, default=str),
-            encoding="utf-8",
-        )
+        write_json_atomic(self._path(state.session_id), state.model_dump())
         return state
 
     async def update_after_turn(

@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     llm_model: str = ""
     request_timeout_seconds: float = 45.0
     max_retrieval_chunks: int = 4
+    # Comma-separated list of allowed CORS origins. Defaults to "*" for local dev;
+    # set CLINICAL_RAG_ALLOWED_ORIGINS to a concrete list in shared deployments.
+    allowed_origins: str = "*"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
     @property
     def sessions_dir(self) -> Path:

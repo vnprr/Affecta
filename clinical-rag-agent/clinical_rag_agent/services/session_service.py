@@ -1,6 +1,6 @@
-import json
 from pathlib import Path
 from clinical_rag_agent.schemas.clinical import ConversationTurn, PatientSession
+from clinical_rag_agent.services.storage_utils import write_json_atomic
 
 
 class SessionService:
@@ -29,10 +29,7 @@ class SessionService:
                 metadata=metadata,
             )
         )
-        self._path(session_id).write_text(
-            json.dumps(session.model_dump(), ensure_ascii=False, indent=2, default=str),
-            encoding="utf-8",
-        )
+        write_json_atomic(self._path(session_id), session.model_dump())
         return session
 
     async def list_sessions(self) -> list[str]:
