@@ -13,6 +13,7 @@ from clinical_rag_agent.services.conversation_memory_service import Conversation
 from clinical_rag_agent.services.document_ingestion_service import DocumentIngestionService
 from clinical_rag_agent.services.graph_service import GraphService
 from clinical_rag_agent.services.hallucination_service import HallucinationService
+from clinical_rag_agent.services.human_review_service import HumanReviewService
 from clinical_rag_agent.services.hypothesis_service import HypothesisService
 from clinical_rag_agent.services.intake_service import IntakeService
 from clinical_rag_agent.services.llm_service import LLMService
@@ -53,6 +54,7 @@ class AppContainer:
     hypothesis_service: HypothesisService
     therapy_plan_service: TherapyPlanService
     intake_service: IntakeService
+    human_review_service: HumanReviewService
     intake_agent: IntakeAgent
     diagnostic_hypothesis_agent: DiagnosticHypothesisAgent
     treatment_plan_agent: TreatmentPlanAgent
@@ -83,6 +85,7 @@ def create_container(settings: Settings) -> AppContainer:
     hypothesis_service = HypothesisService()
     therapy_plan_service = TherapyPlanService()
     intake_service = IntakeService()
+    human_review_service = HumanReviewService(therapy_state_service)
     intake_agent = IntakeAgent(intake_service)
     diagnostic_hypothesis_agent = DiagnosticHypothesisAgent(hypothesis_service)
     treatment_plan_agent = TreatmentPlanAgent(therapy_plan_service)
@@ -133,6 +136,7 @@ def create_container(settings: Settings) -> AppContainer:
         hypothesis_service=hypothesis_service,
         therapy_plan_service=therapy_plan_service,
         intake_service=intake_service,
+        human_review_service=human_review_service,
         intake_agent=intake_agent,
         diagnostic_hypothesis_agent=diagnostic_hypothesis_agent,
         treatment_plan_agent=treatment_plan_agent,

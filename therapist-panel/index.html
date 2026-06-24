@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Affecta — Therapist Panel</title>
+  <style>
+    :root { --bg:#0f1419; --panel:#1a2029; --accent:#5b8def; --text:#e6e9ef; --muted:#8a93a3; --ok:#3fb950; --bad:#f85149; --warn:#d29922; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    header { background:var(--panel); padding:12px 16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #2a313c; }
+    header input { background:#0d1117; color:var(--text); border:1px solid #2a313c; border-radius:6px; padding:6px 8px; }
+    header input.url { width:280px; } header input.token { width:160px; }
+    button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:13px; }
+    button.secondary { background:#2a313c; } button.ok { background:var(--ok); } button.bad { background:var(--bad); }
+    main { display:grid; grid-template-columns: 240px 1fr; gap:16px; padding:16px; }
+    .sessions { background:var(--panel); border-radius:8px; padding:8px; max-height:80vh; overflow:auto; }
+    .sessions div { padding:8px; border-radius:6px; cursor:pointer; font-size:14px; }
+    .sessions div:hover, .sessions div.active { background:#2a313c; }
+    .case { display:flex; flex-direction:column; gap:16px; }
+    .card { background:var(--panel); border-radius:8px; padding:14px; }
+    .card h3 { margin:0 0 10px; font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    .row { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #2a313c; }
+    .row:last-child { border-bottom:0; }
+    .tag { font-size:11px; padding:2px 8px; border-radius:10px; background:#2a313c; color:var(--muted); }
+    .tag.low{color:var(--muted)} .tag.medium{color:var(--warn)} .tag.high{color:var(--bad)}
+    .tag.confirmed_by_human{color:var(--ok)} .tag.rejected_by_human{color:var(--bad)}
+    .tag.internal{background:#3a2d12;color:var(--warn)}
+    .attention { border-left:3px solid var(--warn); padding-left:10px; }
+    .muted { color:var(--muted); font-size:13px; }
+    .chips span { display:inline-block; background:#2a313c; border-radius:10px; padding:2px 8px; margin:2px; font-size:12px; }
+    textarea, select { width:100%; background:#0d1117; color:var(--text); border:1px solid #2a313c; border-radius:6px; padding:6px; }
+    .empty { color:var(--muted); padding:24px; text-align:center; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Affecta</strong>
+    <input class="url" id="apiUrl" placeholder="http://localhost:8000" value="http://localhost:8000" />
+    <input class="token" id="token" placeholder="API token" value="local-dev-key" />
+    <button onclick="loadSessions()" id="btnLoad">Load sessions</button>
+    <span style="flex:1"></span>
+    <select id="lang" onchange="setLang(this.value)" style="width:auto">
+      <option value="en">EN</option>
+      <option value="pl">PL</option>
+    </select>
+  </header>
+  <main>
+    <div class="sessions" id="sessions"><div class="empty" data-i18n="noSessions">No sessions loaded</div></div>
+    <div class="case" id="case"><div class="empty" data-i18n="selectSession">Select a session</div></div>
+  </main>
+
+  <script>
+    const I18N = {
+      en: { noSessions:"No sessions loaded", selectSession:"Select a session", loadSessions:"Load sessions",
+        overview:"Overview", stage:"Stage", sessions:"Sessions", focus:"Active focus", presenting:"Presenting problems",
+        patterns:"Recurring patterns", summary:"Longitudinal summary", hypotheses:"Working hypotheses (internal)",
+        goals:"Therapy goals", interventions:"Suggested interventions", psychoed:"Psychoeducation topics",
+        notes:"Session notes", review:"Reviewer actions", addNote:"Add note", setFocus:"Set focus",
+        approve:"Approve", reject:"Reject", pause:"Pause", complete:"Complete", makeInternal:"Make internal",
+        makeVisible:"Make visible", attention:"Needs attention", none:"none yet", notePlaceholder:"Reviewer note…",
+        focusPlaceholder:"Override active focus…", saved:"Saved" },
+      pl: { noSessions:"Brak wczytanych sesji", selectSession:"Wybierz sesję", loadSessions:"Wczytaj sesje",
+        overview:"Przegląd", stage:"Etap", sessions:"Sesje", focus:"Aktywny fokus", presenting:"Zgłaszane problemy",
+        patterns:"Powracające wzorce", summary:"Podsumowanie długoterminowe", hypotheses:"Hipotezy robocze (wewnętrzne)",
+        goals:"Cele terapii", interventions:"Sugerowane interwencje", psychoed:"Tematy psychoedukacji",
+        notes:"Notatki z sesji", review:"Działania recenzenta", addNote:"Dodaj notatkę", setFocus:"Ustaw fokus",
+        approve:"Zatwierdź", reject:"Odrzuć", pause:"Wstrzymaj", complete:"Zakończ", makeInternal:"Ukryj (internal)",
+        makeVisible:"Pokaż (visible)", attention:"Wymaga uwagi", none:"jeszcze brak", notePlaceholder:"Notatka recenzenta…",
+        focusPlaceholder:"Nadpisz aktywny fokus…", saved:"Zapisano" },
+    };
+    let lang = "en";
+    let currentSession = null;
+    const t = (k) => (I18N[lang][k] || k);
+
+    function setLang(l){ lang = l; document.querySelectorAll("[data-i18n]").forEach(e=>e.textContent=t(e.dataset.i18n)); if(currentSession) openSession(currentSession); }
+    function api(){ return document.getElementById("apiUrl").value.replace(/\/$/,""); }
+    function headers(){ return { "Authorization":"Bearer "+document.getElementById("token").value, "Content-Type":"application/json" }; }
+
+    async function loadSessions(){
+      try {
+        const res = await fetch(api()+"/api/sessions", { headers: headers() });
+        const data = await res.json();
+        const box = document.getElementById("sessions");
+        if(!data.sessions || !data.sessions.length){ box.innerHTML = '<div class="empty">'+t("noSessions")+'</div>'; return; }
+        box.innerHTML = data.sessions.map(s=>`<div onclick="openSession('${s}')" id="s-${s}">${s}</div>`).join("");
+      } catch(e){ alert("Error: "+e.message); }
+    }
+
+    async function openSession(id){
+      currentSession = id;
+      document.querySelectorAll(".sessions div").forEach(d=>d.classList.remove("active"));
+      const el = document.getElementById("s-"+id); if(el) el.classList.add("active");
+      const [state, notes] = await Promise.all([
+        fetch(`${api()}/api/sessions/${id}/therapy-state`, {headers:headers()}).then(r=>r.json()),
+        fetch(`${api()}/api/sessions/${id}/notes`, {headers:headers()}).then(r=>r.json()).then(d=>d.notes||[]),
+      ]);
+      render(state, notes);
+    }
+
+    function chips(arr){ return (arr&&arr.length) ? '<div class="chips">'+arr.map(x=>`<span>${esc(x)}</span>`).join("")+'</div>' : `<span class="muted">${t("none")}</span>`; }
+    function esc(s){ return String(s).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+    function render(state, notes){
+      const hyp = (state.working_hypotheses||[]).map(h=>`
+        <div class="row">
+          <div><strong>${esc(h.label)}</strong> <span class="tag ${h.confidence}">${h.confidence}</span> <span class="tag ${h.status}">${esc(h.status)}</span>
+            <div class="muted">${esc((h.implications_for_session||[]).slice(0,3).join(" · "))}</div></div>
+          <div>
+            <button class="ok" onclick="decide('${h.id}','approve')">${t("approve")}</button>
+            <button class="bad" onclick="decide('${h.id}','reject')">${t("reject")}</button>
+          </div>
+        </div>`).join("") || `<span class="muted">${t("none")}</span>`;
+
+      const goals = (state.therapy_goals||[]).map(g=>`
+        <div class="row">
+          <div><strong>${esc(g.title)}</strong> <span class="tag ${g.visibility}">${g.visibility}</span> <span class="tag">${esc(g.status)}</span>
+            ${g.suggested_method?`<span class="tag">${esc(g.suggested_method)}</span>`:""}
+            <div class="muted">${esc(g.description||"")}</div></div>
+          <div>
+            <button class="secondary" onclick="goal('${g.id}',{status:'paused'})">${t("pause")}</button>
+            <button class="secondary" onclick="goal('${g.id}',{status:'completed'})">${t("complete")}</button>
+            <button class="secondary" onclick="goal('${g.id}',{visibility:'${g.visibility==='visible'?'internal':'visible'}'})">${g.visibility==='visible'?t("makeInternal"):t("makeVisible")}</button>
+          </div>
+        </div>`).join("") || `<span class="muted">${t("none")}</span>`;
+
+      const noteRows = (notes||[]).slice().reverse().map(n=>`
+        <div class="row ${n.human_review_recommended?'attention':''}">
+          <div><div>${esc(n.summary||"")}</div>
+            ${n.human_review_recommended?`<div class="muted">⚠ ${t("attention")}: ${esc(n.human_review_reason||"")}</div>`:""}</div>
+        </div>`).join("") || `<span class="muted">${t("none")}</span>`;
+
+      const reviewNotes = (state.human_review_notes||[]).map(n=>`<div class="row"><div>${esc(n.note)} <span class="muted">— ${esc(n.reviewer||"?")} (${esc(n.decision)})</span></div></div>`).join("");
+
+      document.getElementById("case").innerHTML = `
+        <div class="card">
+          <h3>${t("overview")}</h3>
+          <div class="row"><span>${t("stage")}</span><span class="tag">${esc(state.current_stage)}</span></div>
+          <div class="row"><span>${t("sessions")}</span><span>${state.session_count}</span></div>
+          <div class="row"><span>${t("focus")}</span><span>${esc(state.active_focus||t("none"))}</span></div>
+          <div class="row"><span>${t("presenting")}</span><span>${chips(state.presenting_problems)}</span></div>
+          <div class="row"><span>${t("patterns")}</span><span>${chips(state.recurring_patterns)}</span></div>
+          <div style="padding-top:8px"><div class="muted">${t("summary")}</div><div>${esc(state.longitudinal_summary||t("none"))}</div></div>
+        </div>
+        <div class="card"><h3>${t("hypotheses")}</h3>${hyp}</div>
+        <div class="card"><h3>${t("goals")}</h3>${goals}</div>
+        <div class="card"><h3>${t("interventions")}</h3>${chips(state.suggested_interventions)}
+          <div style="margin-top:10px"><div class="muted">${t("psychoed")}</div>${chips(state.psychoeducation_topics)}</div></div>
+        <div class="card"><h3>${t("notes")}</h3>${noteRows}</div>
+        <div class="card">
+          <h3>${t("review")}</h3>
+          ${reviewNotes}
+          <div style="margin-top:10px"><textarea id="noteInput" placeholder="${t("notePlaceholder")}"></textarea>
+            <button style="margin-top:6px" onclick="addNote()">${t("addNote")}</button></div>
+          <div style="margin-top:10px"><textarea id="focusInput" placeholder="${t("focusPlaceholder")}" rows="1"></textarea>
+            <button style="margin-top:6px" onclick="setFocus()">${t("setFocus")}</button></div>
+        </div>`;
+    }
+
+    async function post(path, body){
+      const res = await fetch(api()+path, { method:"POST", headers:headers(), body:JSON.stringify(body) });
+      if(!res.ok){ alert("Error "+res.status); return; }
+      await openSession(currentSession);
+    }
+    async function patch(path, body){
+      const res = await fetch(api()+path, { method:"PATCH", headers:headers(), body:JSON.stringify(body) });
+      if(!res.ok){ alert("Error "+res.status); return; }
+      await openSession(currentSession);
+    }
+    const decide = (id, decision) => post(`/api/sessions/${currentSession}/human-decision`, {hypothesis_id:id, decision});
+    const goal = (id, body) => patch(`/api/sessions/${currentSession}/goals/${id}`, body);
+    function addNote(){ const v=document.getElementById("noteInput").value.trim(); if(v) post(`/api/sessions/${currentSession}/human-review-note`, {note:v, reviewer:"panel", decision:"comment"}); }
+    function setFocus(){ const v=document.getElementById("focusInput").value.trim(); if(v) post(`/api/sessions/${currentSession}/active-focus`, {focus:v}); }
+  </script>
+</body>
+</html>
