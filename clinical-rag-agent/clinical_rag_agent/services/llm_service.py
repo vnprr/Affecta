@@ -100,12 +100,27 @@ class LLMService:
         longitudinal_summary = self.memory_service.build_longitudinal_summary(session, therapy_state)
         evidence = "\n\n".join(f"[{chunk.id}] {chunk.text}" for chunk in rag_context.chunks)
         graph_notes = "\n".join(str(item) for item in graph_context.relations)
-        hypotheses = ", ".join(
-            f"{hypothesis.label} ({hypothesis.confidence})"
+        active_hypotheses = [
+            hypothesis
             for hypothesis in therapy_state.working_hypotheses
             if hypothesis.status not in {"rejected_by_human", "weakened"}
+        ]
+        hypotheses = "; ".join(
+            f"{hypothesis.label} ({hypothesis.confidence}; guidance: "
+            f"{', '.join(hypothesis.implications_for_session[:3]) or 'observe'})"
+            for hypothesis in active_hypotheses
         )
-        goals = ", ".join(f"{goal.title} ({goal.status})" for goal in therapy_state.therapy_goals)
+        goals = ", ".join(
+            f"{goal.title} ({goal.status})"
+            for goal in therapy_state.therapy_goals
+            if goal.visibility == "visible" and goal.status == "active"
+        )
+        internal_goals = ", ".join(
+            goal.title
+            for goal in therapy_state.therapy_goals
+            if goal.visibility == "internal" and goal.status == "active"
+        )
+        interventions = ", ".join(therapy_state.suggested_interventions[:4])
         messages = [
             {
                 "role": "system",
@@ -134,6 +149,8 @@ class LLMService:
                     f"Current stage: {therapy_state.current_stage}\n"
                     f"Recurring patterns: {', '.join(therapy_state.recurring_patterns) or 'none yet'}\n"
                     f"Therapy goals: {goals or 'none yet'}\n"
+                    f"Internal goals (guide your style only, do not state them): {internal_goals or 'none yet'}\n"
+                    f"Suggested interventions for internal guidance: {interventions or 'none yet'}\n"
                     f"Working hypotheses for internal guidance only: {hypotheses or 'none yet'}\n\n"
                     f"Therapeutic process mode: {therapy_context.session_mode}\n"
                     f"Therapeutic focus: {therapy_context.therapeutic_focus}\n"

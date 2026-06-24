@@ -1,9 +1,13 @@
 from clinical_rag_agent.agents.crisis_agent import CrisisAgent
+from clinical_rag_agent.agents.diagnostic_hypothesis_agent import DiagnosticHypothesisAgent
 from clinical_rag_agent.agents.hallucination_guard_agent import HallucinationGuardAgent
+from clinical_rag_agent.agents.intake_agent import IntakeAgent
 from clinical_rag_agent.agents.judge_agent import JudgeAgent
+from clinical_rag_agent.agents.treatment_plan_agent import TreatmentPlanAgent
 from clinical_rag_agent.schemas.chat import ChatCompletionResult
 from clinical_rag_agent.schemas.therapy import TherapeuticCaseState, TherapeuticProcessContext
 from clinical_rag_agent.services.audit_log_service import AuditLogService
+from clinical_rag_agent.services.case_formulation_service import CaseFormulationService
 from clinical_rag_agent.services.conversation_memory_service import ConversationMemoryService
 from clinical_rag_agent.services.graph_service import GraphService
 from clinical_rag_agent.services.hallucination_service import HallucinationService
@@ -39,6 +43,10 @@ class AgentOrchestrator:
         judge_agent: JudgeAgent,
         monitoring_service: MonitoringService,
         audit_log_service: AuditLogService,
+        case_formulation_service: CaseFormulationService,
+        intake_agent: IntakeAgent,
+        diagnostic_hypothesis_agent: DiagnosticHypothesisAgent,
+        treatment_plan_agent: TreatmentPlanAgent,
     ):
         self.session_service = session_service
         self.therapy_state_service = therapy_state_service
@@ -57,6 +65,10 @@ class AgentOrchestrator:
         self.judge_agent = judge_agent
         self.monitoring_service = monitoring_service
         self.audit_log_service = audit_log_service
+        self.case_formulation_service = case_formulation_service
+        self.intake_agent = intake_agent
+        self.diagnostic_hypothesis_agent = diagnostic_hypothesis_agent
+        self.treatment_plan_agent = treatment_plan_agent
 
     async def handle_clinical_chat(self, user_message: str, session_id: str) -> ChatCompletionResult:
         self.monitoring_service.increment("chat.requests")
@@ -198,6 +210,14 @@ class AgentOrchestrator:
             therapy_state,
             analysis_result.therapy_state_update,
         )
+        # Background therapeutic reasoning: intake, case formulation, working
+        # hypotheses and therapy plan. These run after the state has absorbed the
+        # latest turn so the next turn's prompt is guided by fresh internal material.
+        self.intake_agent.assess(updated_state, user_message, nlp_context)
+        formulation = self.case_formulation_service.build(updated_state)
+        evidence_excerpt = analysis_result.session_note.user_message_excerpt or None
+        self.diagnostic_hypothesis_agent.update_hypotheses(updated_state, formulation, evidence_excerpt)
+        self.treatment_plan_agent.update_plan(updated_state, formulation)
         await self.therapy_state_service.save(updated_state)
         enriched_metadata = dict(metadata)
         enriched_metadata["therapy"] = {

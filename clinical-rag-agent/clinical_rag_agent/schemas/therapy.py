@@ -37,11 +37,18 @@ class TherapeuticHypothesis(BaseModel):
     implications_for_session: list[str] = Field(default_factory=list)
 
 
+GoalVisibility = Literal["visible", "internal"]
+
+
 class TherapyGoal(BaseModel):
     id: str
     title: str
     description: str
     status: TherapyGoalStatus = "active"
+    # "visible" goals may be shared with the user; "internal" goals only guide the
+    # agent's style and are shown to the human reviewer, never to the user.
+    visibility: GoalVisibility = "visible"
+    suggested_method: str | None = None
     evidence: list[str] = Field(default_factory=list)
 
 
@@ -66,10 +73,16 @@ class TherapeuticCaseState(BaseModel):
     working_hypotheses: list[TherapeuticHypothesis] = Field(default_factory=list)
     therapy_goals: list[TherapyGoal] = Field(default_factory=list)
     active_focus: str | None = None
+    # Set by a human reviewer; when present it overrides automatic focus selection.
+    human_override_focus: str | None = None
     last_session_summary: str | None = None
     longitudinal_summary: str | None = None
     open_questions: list[str] = Field(default_factory=list)
     suggested_next_steps: list[str] = Field(default_factory=list)
+    suggested_interventions: list[str] = Field(default_factory=list)
+    psychoeducation_topics: list[str] = Field(default_factory=list)
+    intake_complete: bool = False
+    missing_context: list[str] = Field(default_factory=list)
     human_review_notes: list[HumanReviewNote] = Field(default_factory=list)
 
 
@@ -134,3 +147,24 @@ class SessionNote(BaseModel):
 class PostSessionAnalysisResult(BaseModel):
     session_note: SessionNote
     therapy_state_update: TherapyStateUpdate
+
+
+class CaseFormulation(BaseModel):
+    """A consolidated, evolving map of the user's difficulties.
+
+    Built by ``CaseFormulationService`` from the accumulated case state and used as
+    the shared input for the hypothesis and therapy-plan reasoning. It is internal
+    clinical material: it guides background agents and the human reviewer, and is
+    never shown verbatim to the user.
+    """
+
+    session_id: str
+    presenting_problems: list[str] = Field(default_factory=list)
+    emotional_patterns: list[str] = Field(default_factory=list)
+    relational_patterns: list[str] = Field(default_factory=list)
+    cognitive_patterns: list[str] = Field(default_factory=list)
+    behavioral_patterns: list[str] = Field(default_factory=list)
+    triggers: list[str] = Field(default_factory=list)
+    coping_strategies: list[str] = Field(default_factory=list)
+    protective_factors: list[str] = Field(default_factory=list)
+    dominant_themes: list[str] = Field(default_factory=list)

@@ -1,14 +1,20 @@
 from dataclasses import dataclass
 from clinical_rag_agent.agents.agent_orchestrator import AgentOrchestrator
 from clinical_rag_agent.agents.crisis_agent import CrisisAgent
+from clinical_rag_agent.agents.diagnostic_hypothesis_agent import DiagnosticHypothesisAgent
 from clinical_rag_agent.agents.hallucination_guard_agent import HallucinationGuardAgent
+from clinical_rag_agent.agents.intake_agent import IntakeAgent
 from clinical_rag_agent.agents.judge_agent import JudgeAgent
+from clinical_rag_agent.agents.treatment_plan_agent import TreatmentPlanAgent
 from clinical_rag_agent.config import Settings
 from clinical_rag_agent.services.audit_log_service import AuditLogService
+from clinical_rag_agent.services.case_formulation_service import CaseFormulationService
 from clinical_rag_agent.services.conversation_memory_service import ConversationMemoryService
 from clinical_rag_agent.services.document_ingestion_service import DocumentIngestionService
 from clinical_rag_agent.services.graph_service import GraphService
 from clinical_rag_agent.services.hallucination_service import HallucinationService
+from clinical_rag_agent.services.hypothesis_service import HypothesisService
+from clinical_rag_agent.services.intake_service import IntakeService
 from clinical_rag_agent.services.llm_service import LLMService
 from clinical_rag_agent.services.monitoring_service import MonitoringService
 from clinical_rag_agent.services.nlp_service import NlpService
@@ -18,6 +24,7 @@ from clinical_rag_agent.services.safety_service import SafetyService
 from clinical_rag_agent.services.session_note_service import SessionNoteService
 from clinical_rag_agent.services.session_service import SessionService
 from clinical_rag_agent.services.therapeutic_process_service import TherapeuticProcessService
+from clinical_rag_agent.services.therapy_plan_service import TherapyPlanService
 from clinical_rag_agent.services.therapy_state_service import TherapyStateService
 
 
@@ -42,6 +49,13 @@ class AppContainer:
     therapeutic_process_service: TherapeuticProcessService
     session_note_service: SessionNoteService
     post_session_analysis_service: PostSessionAnalysisService
+    case_formulation_service: CaseFormulationService
+    hypothesis_service: HypothesisService
+    therapy_plan_service: TherapyPlanService
+    intake_service: IntakeService
+    intake_agent: IntakeAgent
+    diagnostic_hypothesis_agent: DiagnosticHypothesisAgent
+    treatment_plan_agent: TreatmentPlanAgent
     orchestrator: AgentOrchestrator
 
 
@@ -65,6 +79,13 @@ def create_container(settings: Settings) -> AppContainer:
     therapeutic_process_service = TherapeuticProcessService()
     session_note_service = SessionNoteService(settings.session_notes_dir)
     post_session_analysis_service = PostSessionAnalysisService()
+    case_formulation_service = CaseFormulationService()
+    hypothesis_service = HypothesisService()
+    therapy_plan_service = TherapyPlanService()
+    intake_service = IntakeService()
+    intake_agent = IntakeAgent(intake_service)
+    diagnostic_hypothesis_agent = DiagnosticHypothesisAgent(hypothesis_service)
+    treatment_plan_agent = TreatmentPlanAgent(therapy_plan_service)
     orchestrator = AgentOrchestrator(
         session_service=session_service,
         therapy_state_service=therapy_state_service,
@@ -83,6 +104,10 @@ def create_container(settings: Settings) -> AppContainer:
         judge_agent=judge_agent,
         monitoring_service=monitoring_service,
         audit_log_service=audit_log_service,
+        case_formulation_service=case_formulation_service,
+        intake_agent=intake_agent,
+        diagnostic_hypothesis_agent=diagnostic_hypothesis_agent,
+        treatment_plan_agent=treatment_plan_agent,
     )
     return AppContainer(
         settings=settings,
@@ -104,5 +129,12 @@ def create_container(settings: Settings) -> AppContainer:
         therapeutic_process_service=therapeutic_process_service,
         session_note_service=session_note_service,
         post_session_analysis_service=post_session_analysis_service,
+        case_formulation_service=case_formulation_service,
+        hypothesis_service=hypothesis_service,
+        therapy_plan_service=therapy_plan_service,
+        intake_service=intake_service,
+        intake_agent=intake_agent,
+        diagnostic_hypothesis_agent=diagnostic_hypothesis_agent,
+        treatment_plan_agent=treatment_plan_agent,
         orchestrator=orchestrator,
     )
